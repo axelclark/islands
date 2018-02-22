@@ -3,4 +3,5 @@ alias IslandsEngine.{
   Guesses,
   Island,
   Board,
+  Rules,
 }
