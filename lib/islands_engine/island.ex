@@ -67,7 +67,7 @@ defmodule IslandsEngine.Island do
 
   defp offsets(:s_shape), do: [{0, 1}, {0, 2}, {1, 0}, {1, 1}]
 
-  defp offsets(input) do
-    {:error, "#{inspect(input)} is an invalid_island_type"}
+  defp offsets(_input) do
+    {:error, :invalid_island_type}
   end
 end
