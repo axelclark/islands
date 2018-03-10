@@ -1,3 +1,11 @@
+/***
+ * Excerpted from "Functional Web Development with Elixir, OTP, and Phoenix",
+ * published by The Pragmatic Bookshelf.
+ * Copyrights apply to this code. It may not be used to create training material,
+ * courses, books, articles, and the like. Contact us if you are in doubt.
+ * We make no guarantees that this code is fit for any purpose.
+ * Visit http://www.pragmaticprogrammer.com/titles/lhelph for more book information.
+***/
 // Brunch automatically concatenates all files in your
 // watched paths. Those paths can be configured at
 // config.paths.watched in "brunch-config.js".
@@ -13,9 +21,11 @@
 // to also remove its path from "config.paths.watched".
 import "phoenix_html"
 
+import Game from './game/game';
+
 // Import local files
 //
 // Local files can be imported directly using relative
 // paths "./socket" or full ones "web/static/js/socket".
 
-import socket from "./socket"
+// import socket from "./socket"
