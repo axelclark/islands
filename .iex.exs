@@ -5,4 +5,5 @@ alias IslandsEngine.{
   Island,
   Board,
   Rules,
+  GameSupervisor
 }
