@@ -21,8 +21,6 @@
 // to also remove its path from "config.paths.watched".
 import "phoenix_html"
 
-import Game from './game/game';
-
 // Import local files
 //
 // Local files can be imported directly using relative
