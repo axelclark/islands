@@ -1,10 +1,11 @@
 <template>
-  <h1 v-if="isGameStarted">Game Started</h1>
+  <game v-if="isGameStarted" :channel="channel" :player="player"/>
   <game-start v-else v-on:startGame="startGame"/>
 </template>
 
 <script>
 import GameStart from './components/GameStart'
+import Game from './components/Game'
 import { Socket } from "phoenix";
 
 export default {
@@ -20,6 +21,7 @@ export default {
   },
 
   components: {
+    Game,
     GameStart
   },
 
