@@ -9,11 +9,14 @@
           v-on:droppedIsland="dropHandler"/>
       </tbody>
     </table>
+    <button id="set_islands" v-on:click="() => handleClick('set-islands')">
+      Set Islands
+    </button>
   </div>
 </template>
 
 <script>
-import { blankBoard, getRows, hit, miss } from "../utils/board"
+import { blankBoard, getRows, hit, miss, inIsland } from "../utils/board"
 import HeaderRow from "./HeaderRow"
 import BoardRow from "./BoardRow"
 
@@ -26,29 +29,35 @@ export default {
       islands: ["atoll", "dot", "l_shape", "s_shape", "square"]
     }
   },
+
   computed: {
     rows: function () {
       return getRows(this.board)
     }
   },
+
   props: {
     channel: Object,
     player: String
   },
+
   components: {
     HeaderRow,
     BoardRow
   },
+
   mounted () {
     this.channel.on("player_guessed_coordinate", response => {
       this.processOpponentGuess(response);
     })
   },
+
   beforeDestroy () {
     this.channel.off("player_guessed_coordinate", response => {
       this.processOpponentGuess(response);
     })
   },
+
   methods: {
     processOpponentGuess: function (response) {
       let board = this.board;
@@ -90,7 +99,44 @@ export default {
         .receive("error", response => {
           this.message = "Oops!";
         })
-    }
+    },
+
+    handleClick: function () {
+      this.setIslands(this.player);
+    },
+
+    setIslands: function (player) {
+      this.channel.push("set_islands", player)
+        .receive("ok", response => {
+          this.removeIslandImages(this.islands);
+          this.setIslandCoordinates(response.board);
+          this.message = "Islands set!";
+          document.getElementById("set_islands").remove();
+        })
+        .receive("error", response => {
+          this.message = "Oops. Can't set your islands yet.";
+        })
+    },
+
+    extractCoordinates: function (board) {
+      let coords = this.islands.reduce(
+        function(acc, island) {
+          return acc.concat(board[island].coordinates);
+        }, []
+      );
+      return coords;
+    },
+
+    removeIslandImages: function () {
+      const images = document.getElementsByTagName("img");
+      this.islands.forEach(function(island) { images[island].remove(); });
+    },
+
+    setIslandCoordinates: function (responseBoard) {
+      const coordinates = this.extractCoordinates(responseBoard, this.islands);
+      const newBoard = inIsland(this.board, coordinates);
+      this.board = newBoard;
+    },
   }
 }
 </script>
