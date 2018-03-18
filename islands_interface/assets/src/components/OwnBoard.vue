@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import { blankBoard, getRows } from "../utils/board"
+import { blankBoard, getRows, hit, miss } from "../utils/board"
 import HeaderRow from "./HeaderRow"
 import BoardRow from "./BoardRow"
 
@@ -38,6 +38,63 @@ export default {
   components: {
     HeaderRow,
     BoardRow
+  },
+  mounted () {
+    this.channel.on("player_guessed_coordinate", response => {
+      this.processOpponentGuess(response);
+    })
+  },
+  beforeDestroy () {
+    this.channel.off("player_guessed_coordinate", response => {
+      this.processOpponentGuess(response);
+    })
+  },
+  methods: {
+    processOpponentGuess: function (response) {
+      let board = this.board;
+      if (response.player !== this.player) {
+        if (response.result.win === "win") {
+          this.message = "Your opponent won.";
+          board = hit(board, response.row, response.col);
+        } else if (response.result.island !== "none") {
+          this.message = "Your opponent forested your " + response.result.island + " island.";
+          board = hit(board, response.row, response.col);
+        } else if (response.result.hit === true) {
+          this.message = "Your opponent hit your island.";
+          board = hit(board, response.row, response.col);
+        } else {
+          this.message = "Your opponent missed.";
+          board = miss(board, response.row, response.col);
+        }
+      }
+      this.board = board;
+    },
+
+    allowDrop: function (event) {
+      event.preventDefault();
+    },
+
+    dropHandler: function (event) {
+      event.preventDefault();
+      const data = event.dataTransfer.getData("text");
+      const image = document.getElementById(data);
+      const row = Number(event.target.dataset.row);
+      const col = Number(event.target.dataset.col);
+      this.positionIsland(event.target, image, row, col);
+    },
+
+    positionIsland: function (coordinate, island, row, col) {
+      const params = {"player": this.player, "island": island.id, "row": row, "col": col};
+      this.channel.push("position_island", params)
+        .receive("ok", response => {
+          coordinate.appendChild(island);
+          island.class = "positioned_island_image";
+          this.message = "Island Positioned!";
+        })
+        .receive("error", response => {
+          this.message = "Oops!";
+        })
+    }
   }
 }
 </script>
