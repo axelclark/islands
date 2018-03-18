@@ -8,11 +8,13 @@
       <img id="square" src="images/square.png" width="60" height="60" draggable="true" v-on:ondragstart.native="dragStartHandler" />
     </div>
     <own-board :channel="channel" :player="player" />
+    <opponent-board :channel="channel" :player="player" />
   </div>
 </template>
 
 <script>
 import OwnBoard from "./OwnBoard"
+import OpponentBoard from "./OpponentBoard"
 
 export default {
   name: 'game',
@@ -21,7 +23,8 @@ export default {
     player: String
   },
   components: {
-    OwnBoard
+    OwnBoard,
+    OpponentBoard
   },
   methods: {
     dragStartHandler: function (event) {
