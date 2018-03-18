@@ -28,7 +28,6 @@ export default {
   },
   methods: {
     dragStartHandler: function (event) {
-      console.log("dragging", event)
       event.dataTransfer.setData("text/plain", event.target.id);
     }
   }

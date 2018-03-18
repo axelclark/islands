@@ -83,8 +83,8 @@ export default {
     },
 
     handleClick: function (eventl) {
-      let row = event.target.dataset.row;
-      let col = event.target.dataset.col;
+      let row = Number(event.target.dataset.row);
+      let col = Number(event.target.dataset.col);
       this.guessCoordinate(this.player, row, col);
     },
 

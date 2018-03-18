@@ -9,7 +9,7 @@
           v-on:droppedIsland="dropHandler"/>
       </tbody>
     </table>
-    <button id="set_islands" v-on:click="() => handleClick('set-islands')">
+    <button class="button" id="set_islands" v-on:click="() => handleClick('set-islands')">
       Set Islands
     </button>
   </div>
