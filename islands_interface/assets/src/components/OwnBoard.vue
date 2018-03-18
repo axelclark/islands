@@ -5,8 +5,8 @@
       <caption class="board_title">your board</caption>
       <header-row/>
       <tbody>
-        <board-row v-for="n in 10" :coordinates="rows[n]" :value="n" :key="n">
-        </board-row>
+        <board-row v-for="n in 10" :coordinates="rows[n]" :value="n" :key="n" 
+          v-on:droppedIsland="dropHandler"/>
       </tbody>
     </table>
   </div>
@@ -70,10 +70,6 @@ export default {
       this.board = board;
     },
 
-    allowDrop: function (event) {
-      event.preventDefault();
-    },
-
     dropHandler: function (event) {
       event.preventDefault();
       const data = event.dataTransfer.getData("text");
@@ -88,7 +84,7 @@ export default {
       this.channel.push("position_island", params)
         .receive("ok", response => {
           coordinate.appendChild(island);
-          island.class = "positioned_island_image";
+          island.classList.add("positioned_island_image");
           this.message = "Island Positioned!";
         })
         .receive("error", response => {

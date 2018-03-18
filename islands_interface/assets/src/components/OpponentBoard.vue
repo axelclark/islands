@@ -5,8 +5,7 @@
       <caption class="board_title">your opponent's board</caption>
       <header-row/>
       <tbody>
-        <board-row v-for="n in 10" :coordinates="rows[n]" :value="n" :key="n">
-        </board-row>
+        <board-row v-for="n in 10" :coordinates="rows[n]" :value="n" :key="n"/>
       </tbody>
     </table>
   </div>
