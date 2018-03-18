@@ -3,7 +3,7 @@
     <box :value="value"/>
     <coordinate v-for="coord in coordinates" :row="coord.row" :col="coord.col"
       :className="coord.className" :key="coord.row + coord.col"
-      v-on:droppedIsland="handleDrop"/>
+      v-on:droppedIsland="handleDrop" v-on:clickedCoord="handleClick"/>
   </tr>
 </template>
 
@@ -24,6 +24,10 @@ export default {
   methods: {
     handleDrop: function (event) {
       this.$emit("droppedIsland", event)
+    },
+
+    handleClick: function (event) {
+      this.$emit("clickedCoord", event)
     }
   }
 }
