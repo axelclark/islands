@@ -1,10 +1,10 @@
 import React from 'react'
 import { StackNavigator } from 'react-navigation'
-import StartGame from './components/StartGame'
+import Game from './components/Game'
 
 const App = StackNavigator({
-  StartGame: {
-    screen: StartGame
+  Game: {
+    screen: Game
   }
 })
 
