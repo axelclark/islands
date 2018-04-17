@@ -12,6 +12,49 @@ import { Socket } from 'phoenix';
 const socket = new Socket('ws://localhost:4000/socket', {});
 socket.connect();
 
+function MessageBox(props) {
+  return (
+    <View style={styles.messageBox}>
+      <Text style={styles.messageText}>{props.message}</Text>
+    </View>
+  )
+}
+
+class OwnBoard extends React.Component {
+  constructor() {
+    super(),
+      this.state = {
+        message: 'Welcome!',
+        islands: ['atoll', 'dot', 'l_shape', 's_shape', 'square']
+      }
+  }
+  render() {
+    const { message } = this.state
+    return (
+      <View>
+        <MessageBox message={message} />
+      </View>
+    );
+  }
+}
+
+class OpponentBoard extends React.Component {
+  constructor() {
+    super(),
+      this.state = {
+        message: 'No opponent yet.',
+      }
+  }
+  render() {
+    const { message } = this.state
+    return (
+      <View>
+        <MessageBox message={message} />
+      </View>
+    );
+  }
+}
+
 class Game extends React.Component {
   constructor() {
     super(),
@@ -119,8 +162,8 @@ class Game extends React.Component {
             style={[styles.islandImages, {width: 60, height: 60}]} 
           />
         </View>
-        <Text>Your Board Here</Text>
-        <Text>Your Opponent's Board Here</Text>
+        {<OwnBoard channel={this.state.channel} player={this.state.player} />}
+        {<OpponentBoard channel={this.state.channel} player={this.state.player} />}
       </View>
     )
   }
@@ -159,6 +202,15 @@ const styles = StyleSheet.create({
     margin: 10,
     flexDirection: 'row',
     justifyContent: 'space-around'
+  },
+  messageBox: {
+    margin: 10,
+    borderWidth: 1
+  },
+  messageText: {
+    textAlign: 'center',
+    fontSize: 18,
+    margin: 10
   },
   islandImages: {},
   startText: {
