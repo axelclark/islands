@@ -159,6 +159,16 @@ class OpponentBoard extends React.Component {
       }
   }
 
+  componentDidMount() {
+    this.state.channel.on("player_added", response => {
+      this.processPlayerAdded();
+    })
+  }
+
+  processPlayerAdded() {
+    this.setState({message: "Both players present."});
+  }
+
   renderRow(coordinates, key) {
     return (
       <View style={styles.row} key={key}>
