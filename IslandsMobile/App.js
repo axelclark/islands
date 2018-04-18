@@ -1,16 +1,71 @@
 import React from 'react'
 import {
+  Button,
   Image,
+  ScrollView,
   StyleSheet, 
   Text, 
   TouchableHighlight,
   View 
 } from 'react-native'
 
+import _ from 'underscore';
 import { Socket } from 'phoenix';
 
 const socket = new Socket('ws://localhost:4000/socket', {});
 socket.connect();
+
+function blankBoard() {
+  let board = {};
+
+  for (let i = 1; i <= 10; i++) {
+    for (let j = 1; j <= 10; j++) {
+      board[i + ":" + j] = {row: i, col: j, className: "coordinate"};
+    }
+  }
+  return board;
+}
+
+function getRows(board) {
+  let rows = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: []};
+  let boardValues = Object.values(board);
+
+  _.each(boardValues, function(value) {
+    rows[value.row].push(value);
+  })
+  return rows;
+}
+
+function hit(board, row, col) {
+  board[row + ":" + col].className = "coordinate hit";
+  return board;
+}
+
+function miss(board, row, col) {
+  board[row + ":" + col].className = "coordinate miss";
+  return board;
+}
+
+function inIsland(board, coordinates) {
+  _.each(coordinates, function(coord) {
+    board[coord.row + ":" + coord.col].className = "coordinate island";
+  });
+  return board;
+}
+
+function Coordinate(props) {
+  return (
+    <View style={styles.coordinate} />
+  )
+}
+
+function Box(props) {
+  return (
+    <View style={styles.box}>
+      <Text style={styles.boxText}>{props.value}</Text>
+    </View>
+  );
+}
 
 function MessageBox(props) {
   return (
@@ -20,36 +75,123 @@ function MessageBox(props) {
   )
 }
 
+function HeaderRow(props) {
+  const range = _.range(1,11);
+
+  return (
+    <View style={styles.row}>
+        <Box />
+        {range.map(function(i) {
+          return (<Box value={i} key={i} />) 
+        })}
+    </View>
+  );
+}
+
 class OwnBoard extends React.Component {
-  constructor() {
-    super(),
+  constructor(props) {
+    super(props),
       this.state = {
+        board: blankBoard(),
+        player: props.player,
+        channel: props.channel,
         message: 'Welcome!',
         islands: ['atoll', 'dot', 'l_shape', 's_shape', 'square']
       }
   }
+
+  handleClick(input) {
+    console.log(input)
+  }
+
+  renderRow(coordinates, key) {
+    return (
+      <View style={styles.row} key={key}>
+        <Box value={key} />
+        {coordinates.map(function(coord, i) { 
+          return ( 
+            <Coordinate
+              row={coord.row}
+              col={coord.col}
+              key={i}
+            />
+          )
+        })}
+      </View>
+    )
+  }
+
   render() {
     const { message } = this.state
+    const rows = getRows(this.state.board)
+    const range = _.range(1,11)
+    const context = this;
+
     return (
       <View>
+        <Text style={styles.boardTitle}>Own Board</Text>
         <MessageBox message={message} />
+        <View style={styles.board} >
+          <HeaderRow />
+          {range.map(function(i) {
+            return (context.renderRow(rows[i], i))
+          })}
+        </View>
+        <View style={styles.button}>
+          <Button
+            onPress={() => this.handleClick('start-game')}
+            title='Set Islands'
+          />
+        </View>
       </View>
     );
   }
 }
 
 class OpponentBoard extends React.Component {
-  constructor() {
-    super(),
+  constructor(props) {
+    super(props),
       this.state = {
-        message: 'No opponent yet.',
+        board: blankBoard(),
+        player: props.player,
+        channel: props.channel,
+        message: 'No opponent yet.'
       }
   }
+
+  renderRow(coordinates, key) {
+    return (
+      <View style={styles.row} key={key}>
+        <Box value={key} />
+        {coordinates.map(function(coord, i) { 
+          return ( 
+            <Coordinate
+              row={coord.row}
+              col={coord.col}
+              key={i}
+            />
+          )
+        })}
+      </View>
+    )
+  }
+
   render() {
     const { message } = this.state
+    const rows = getRows(this.state.board)
+    const range = _.range(1,11)
+    const context = this;
+
     return (
       <View>
+        <Text style={styles.boardTitle}>Opponent's Board</Text>
         <MessageBox message={message} />
+        <View style={styles.board} >
+          <HeaderRow />
+          {range.map(function(i) {
+            return (context.renderRow(rows[i], i))
+          })}
+        </View>
       </View>
     );
   }
@@ -139,7 +281,7 @@ class Game extends React.Component {
 
   renderGame() {
     return (
-      <View>
+      <ScrollView>
         <View style={styles.imagesContainer}>
           <Image 
             source={require('./images/atoll.png')} 
@@ -164,7 +306,7 @@ class Game extends React.Component {
         </View>
         {<OwnBoard channel={this.state.channel} player={this.state.player} />}
         {<OpponentBoard channel={this.state.channel} player={this.state.player} />}
-      </View>
+      </ScrollView>
     )
   }
 
@@ -198,11 +340,17 @@ const styles = StyleSheet.create({
     margin: 20,
     backgroundColor: 'green'
   },
+  startText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 18
+  },
   imagesContainer: {
     margin: 10,
     flexDirection: 'row',
     justifyContent: 'space-around'
   },
+  islandImages: {},
   messageBox: {
     margin: 10,
     borderWidth: 1
@@ -212,11 +360,33 @@ const styles = StyleSheet.create({
     fontSize: 18,
     margin: 10
   },
-  islandImages: {},
-  startText: {
-    color: '#fff',
+  boardTitle: {
+    fontSize: 24,
     textAlign: 'center',
-    fontSize: 18
+    margin: 10
+  },
+  box: {
+    width: 30,
+    height: 30,
+  },
+  boxText: {
+    textAlign: 'center',
+  },
+  board: {
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  row: {
+    flexDirection: 'row',
+  },
+  coordinate: {
+    width: 30,
+    height: 30,
+    borderWidth: 1,
+    backgroundColor: 'blue'
+  },
+  button: {
+    margin: 10
   }
 })
 
