@@ -224,12 +224,14 @@ class Island extends React.Component {
     // Initialize PanResponder with move handling
     this.panResponder = PanResponder.create({
       onStartShouldSetPanResponder: (e, gesture) => true,
+      onPanResponderGrant: () => this.props.setScroll(false),
       onPanResponderMove: Animated.event([
         null, { dx: this.state.pan.x, dy: this.state.pan.y },
         this.state.pan.setValue({ x:0, y:0}),
       ]),
       // adjusting delta value
       onPanResponderRelease: (e, gesture) => {
+        this.props.setScroll(true)
         console.log(e)
         console.log(gesture)
         console.log(gesture.moveX)
@@ -267,8 +269,10 @@ class Game extends React.Component {
         isGameStarted: false,
         channel: null,
         player: null,
+        scroll: true
       },
       this.handlePress = this.handlePress.bind(this)
+      this.setScroll = this.setScroll.bind(this)
   }
 
   renderStartButtons() {
@@ -342,34 +346,43 @@ class Game extends React.Component {
     this.setState({isGameStarted: true})
   }
 
+  setScroll(bool) {
+    this.setState({scroll: bool})
+  }
+
   renderGame() {
     return (
-      <View refreshing={false}>
+      <ScrollView scrollEnabled={this.state.scroll}>
         {<OwnBoard channel={this.state.channel} player={this.state.player} />}
         <View style={styles.imagesContainer}>
           <Island 
             source={require('./images/atoll.png')} 
             style={[styles.islandImages, {width: 60, height: 90}]} 
+            setScroll={this.setScroll}
           />
           <Island 
             source={require('./images/dot.png')} 
             style={[styles.islandImages, {width: 30, height: 30}]} 
+            setScroll={this.setScroll}
           />
           <Island 
             source={require('./images/l_shape.png')} 
             style={[styles.islandImages, {width: 60, height: 90}]} 
+            setScroll={this.setScroll}
           />
           <Island 
             source={require('./images/s_shape.png')} 
             style={[styles.islandImages, {width: 90, height: 60}]} 
+            setScroll={this.setScroll}
           />
           <Island 
             source={require('./images/square.png')} 
             style={[styles.islandImages, {width: 60, height: 60}]} 
+            setScroll={this.setScroll}
           />
         </View>
         {<OpponentBoard channel={this.state.channel} player={this.state.player} />}
-      </View>
+      </ScrollView>
     )
   }
 
