@@ -1,7 +1,9 @@
 import React from 'react'
 import {
+  Animated,
   Button,
   Image,
+  PanResponder,
   ScrollView,
   StyleSheet, 
   Text, 
@@ -207,6 +209,57 @@ class OpponentBoard extends React.Component {
   }
 }
 
+class Island extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      pan: new Animated.ValueXY()
+    };
+  }
+
+  componentWillMount() {
+    // Add a listener for the delta value change
+    this._val = { x:0, y:0 }
+    this.state.pan.addListener((value) => this._val = value);
+    // Initialize PanResponder with move handling
+    this.panResponder = PanResponder.create({
+      onStartShouldSetPanResponder: (e, gesture) => true,
+      onPanResponderMove: Animated.event([
+        null, { dx: this.state.pan.x, dy: this.state.pan.y },
+        this.state.pan.setValue({ x:0, y:0}),
+      ]),
+      // adjusting delta value
+      onPanResponderRelease: (e, gesture) => {
+        console.log(e)
+        console.log(gesture)
+        console.log(gesture.moveX)
+        console.log(gesture.moveY)
+        console.log(this.state.pan)
+        // this.state.pan.setValue({ x:100, y:0})
+        // Animated.spring(this.state.pan, {
+        //   toValue: { x: 0, y: 0 },
+        //   friction: 5
+        // }).start();
+      }
+    });
+  }
+
+  render() {
+    const { source, style } = this.props
+    const panStyle = {
+      transform: this.state.pan.getTranslateTransform()
+    }
+
+    return (
+      <Animated.Image 
+        source={source} 
+        style={[panStyle, style]}
+        {...this.panResponder.panHandlers}
+      />
+    )
+  }
+}
+
 class Game extends React.Component {
   constructor() {
     super(),
@@ -291,32 +344,32 @@ class Game extends React.Component {
 
   renderGame() {
     return (
-      <ScrollView>
+      <View refreshing={false}>
+        {<OwnBoard channel={this.state.channel} player={this.state.player} />}
         <View style={styles.imagesContainer}>
-          <Image 
+          <Island 
             source={require('./images/atoll.png')} 
             style={[styles.islandImages, {width: 60, height: 90}]} 
           />
-          <Image 
+          <Island 
             source={require('./images/dot.png')} 
             style={[styles.islandImages, {width: 30, height: 30}]} 
           />
-          <Image 
+          <Island 
             source={require('./images/l_shape.png')} 
             style={[styles.islandImages, {width: 60, height: 90}]} 
           />
-          <Image 
+          <Island 
             source={require('./images/s_shape.png')} 
             style={[styles.islandImages, {width: 90, height: 60}]} 
           />
-          <Image 
+          <Island 
             source={require('./images/square.png')} 
             style={[styles.islandImages, {width: 60, height: 60}]} 
           />
         </View>
-        {<OwnBoard channel={this.state.channel} player={this.state.player} />}
         {<OpponentBoard channel={this.state.channel} player={this.state.player} />}
-      </ScrollView>
+      </View>
     )
   }
 
