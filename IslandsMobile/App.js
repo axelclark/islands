@@ -133,7 +133,7 @@ class OwnBoard extends React.Component {
       <View>
         <Text style={styles.boardTitle}>Own Board</Text>
         <MessageBox message={message} />
-        <View style={styles.board} >
+        <View onLayout={this.props.onLayout} style={styles.board} >
           <HeaderRow />
           {range.map(function(i) {
             return (context.renderRow(rows[i], i))
@@ -218,25 +218,30 @@ class Island extends React.Component {
   }
 
   componentWillMount() {
-    // Add a listener for the delta value change
-    this._val = { x:0, y:0 }
-    this.state.pan.addListener((value) => this._val = value);
+    this._animatedValueX = 0;
+    this._animatedValueY = 0; 
+    this.state.pan.x.addListener((value) => this._animatedValueX = value.value);
+    this.state.pan.y.addListener((value) => this._animatedValueY = value.value);
+
     // Initialize PanResponder with move handling
     this.panResponder = PanResponder.create({
       onStartShouldSetPanResponder: (e, gesture) => true,
-      onPanResponderGrant: () => this.props.setScroll(false),
+      onStartShouldSetResponder: (e, gesture) => true,
+      onPanResponderGrant: (e, gestureState) => {
+        this.state.pan.setOffset({x: this._animatedValueX, y: this._animatedValueY})
+        this.state.pan.setValue({x: 0, y: 0})
+        this.props.setScroll(false)
+      },
       onPanResponderMove: Animated.event([
         null, { dx: this.state.pan.x, dy: this.state.pan.y },
         this.state.pan.setValue({ x:0, y:0}),
       ]),
       // adjusting delta value
       onPanResponderRelease: (e, gesture) => {
+        this.state.pan.flattenOffset()
         this.props.setScroll(true)
-        console.log(e)
         console.log(gesture)
-        console.log(gesture.moveX)
-        console.log(gesture.moveY)
-        console.log(this.state.pan)
+        console.log(this.props.onRelease(gesture))
         // this.state.pan.setValue({ x:100, y:0})
         // Animated.spring(this.state.pan, {
         //   toValue: { x: 0, y: 0 },
@@ -269,10 +274,13 @@ class Game extends React.Component {
         isGameStarted: false,
         channel: null,
         player: null,
-        scroll: true
+        scroll: true,
+        boardValues: null
       },
       this.handlePress = this.handlePress.bind(this)
       this.setScroll = this.setScroll.bind(this)
+      this.setBoardValues = this.setBoardValues.bind(this)
+      this.isBoard = this.isBoard.bind(this)
   }
 
   renderStartButtons() {
@@ -350,35 +358,65 @@ class Game extends React.Component {
     this.setState({scroll: bool})
   }
 
+  setBoardValues(event){
+    this.setState({
+      boardValues: event.nativeEvent.layout
+    });
+  }
+
+  isBoard(gesture){
+    console.log('boardValues', this.state.boardValues)
+    console.log('moveX', gesture.moveX)
+    console.log('moveY', gesture.moveY)
+    var dz = this.state.boardValues;
+    return (
+      gesture.moveY > dz.y 
+      && gesture.moveY < dz.y + dz.height
+      && gesture.moveX > dz.x 
+      && gesture.moveX < dz.x + dz.width
+    )
+  }
+
   renderGame() {
     return (
       <ScrollView scrollEnabled={this.state.scroll}>
-        {<OwnBoard channel={this.state.channel} player={this.state.player} />}
+        {
+          <OwnBoard 
+            channel={this.state.channel} 
+            player={this.state.player} 
+            onLayout={this.setBoardValues}
+          />
+        }
         <View style={styles.imagesContainer}>
           <Island 
             source={require('./images/atoll.png')} 
             style={[styles.islandImages, {width: 60, height: 90}]} 
             setScroll={this.setScroll}
+            onRelease={this.isBoard}
           />
           <Island 
             source={require('./images/dot.png')} 
             style={[styles.islandImages, {width: 30, height: 30}]} 
             setScroll={this.setScroll}
+            onRelease={this.isBoard}
           />
           <Island 
             source={require('./images/l_shape.png')} 
             style={[styles.islandImages, {width: 60, height: 90}]} 
             setScroll={this.setScroll}
+            onRelease={this.isBoard}
           />
           <Island 
             source={require('./images/s_shape.png')} 
             style={[styles.islandImages, {width: 90, height: 60}]} 
             setScroll={this.setScroll}
+            onRelease={this.isBoard}
           />
           <Island 
             source={require('./images/square.png')} 
             style={[styles.islandImages, {width: 60, height: 60}]} 
             setScroll={this.setScroll}
+            onRelease={this.isBoard}
           />
         </View>
         {<OpponentBoard channel={this.state.channel} player={this.state.player} />}
