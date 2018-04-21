@@ -234,19 +234,13 @@ class Island extends React.Component {
       },
       onPanResponderMove: Animated.event([
         null, { dx: this.state.pan.x, dy: this.state.pan.y },
-        this.state.pan.setValue({ x:0, y:0}),
+        this.state.pan.setValue({x: 0, y: 0})
       ]),
-      // adjusting delta value
       onPanResponderRelease: (e, gesture) => {
         this.state.pan.flattenOffset()
         this.props.setScroll(true)
         console.log(gesture)
-        console.log(this.props.onRelease(gesture))
-        // this.state.pan.setValue({ x:100, y:0})
-        // Animated.spring(this.state.pan, {
-        //   toValue: { x: 0, y: 0 },
-        //   friction: 5
-        // }).start();
+        console.log('onBoard: ', this.props.onRelease(gesture))
       }
     });
   }
@@ -275,7 +269,7 @@ class Game extends React.Component {
         channel: null,
         player: null,
         scroll: true,
-        boardValues: null
+        boardValues: {y: 178, width: 272, x: 89, height: 272} 
       },
       this.handlePress = this.handlePress.bind(this)
       this.setScroll = this.setScroll.bind(this)
@@ -359,16 +353,17 @@ class Game extends React.Component {
   }
 
   setBoardValues(event){
-    this.setState({
-      boardValues: event.nativeEvent.layout
-    });
+      console.log('onLayout', event.nativeEvent.layout)
   }
 
   isBoard(gesture){
+    const { y, width, x, height } = this.state.boardValues 
     console.log('boardValues', this.state.boardValues)
     console.log('moveX', gesture.moveX)
     console.log('moveY', gesture.moveY)
     var dz = this.state.boardValues;
+    console.log('x coord', Math.floor(((gesture.moveX - x)/ (width / 10 )) + 1))
+    console.log('y coord', Math.floor(((gesture.moveY - y)/ (height / 10 )) + 1))
     return (
       gesture.moveY > dz.y 
       && gesture.moveY < dz.y + dz.height
