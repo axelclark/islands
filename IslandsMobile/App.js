@@ -141,7 +141,7 @@ class OwnBoard extends React.Component {
         </View>
         <View style={styles.button}>
           <Button
-            onPress={() => this.handleClick('start-game')}
+            onPress={this.props.onPress}
             title='Set Islands'
           />
         </View>
@@ -239,8 +239,15 @@ class Island extends React.Component {
       onPanResponderRelease: (e, gesture) => {
         this.state.pan.flattenOffset()
         this.props.setScroll(true)
-        console.log(gesture)
-        console.log('onBoard: ', this.props.onRelease(gesture))
+
+        if(this.props.onRelease(gesture, this.props.island)){
+          console.log('added coord')
+        }else{
+          Animated.spring(
+            this.state.pan,
+            {toValue:{x:0,y:0}}
+          ).start();
+        }
       }
     });
   }
@@ -274,7 +281,9 @@ class Game extends React.Component {
       this.handlePress = this.handlePress.bind(this)
       this.setScroll = this.setScroll.bind(this)
       this.setBoardValues = this.setBoardValues.bind(this)
-      this.isBoard = this.isBoard.bind(this)
+      // this.isBoard = this.isBoard.bind(this)
+      this.handleRelease = this.handleRelease.bind(this)
+      this.handleSetIslands = this.handleSetIslands.bind(this)
   }
 
   renderStartButtons() {
@@ -353,23 +362,67 @@ class Game extends React.Component {
   }
 
   setBoardValues(event){
-      console.log('onLayout', event.nativeEvent.layout)
+      console.log('onLayout boardValues:', event.nativeEvent.layout)
+  }
+
+  handleRelease(gesture, island){
+    if(this.isBoard(gesture)){
+      const { y, width, x, height } = this.state.boardValues 
+      coordX = Math.floor(((gesture.moveX - x)/ (width / 10 )) + 1)
+      console.log('x coord', coordX)
+      coordY = Math.floor(((gesture.moveY - y)/ (height / 10 )) + 1)
+      console.log('y coord', coordY)
+      console.log('island', island)
+      this.positionIsland(null, island, coordX, coordY)
+      return true
+    }else{
+      return false
+    }
   }
 
   isBoard(gesture){
-    const { y, width, x, height } = this.state.boardValues 
     console.log('boardValues', this.state.boardValues)
     console.log('moveX', gesture.moveX)
     console.log('moveY', gesture.moveY)
     var dz = this.state.boardValues;
-    console.log('x coord', Math.floor(((gesture.moveX - x)/ (width / 10 )) + 1))
-    console.log('y coord', Math.floor(((gesture.moveY - y)/ (height / 10 )) + 1))
     return (
       gesture.moveY > dz.y 
       && gesture.moveY < dz.y + dz.height
       && gesture.moveX > dz.x 
       && gesture.moveX < dz.x + dz.width
     )
+  }
+
+  handleSetIslands() {
+    this.setIslands(this.state.player);
+  }
+
+  setIslands(player) {
+    this.state.channel.push("set_islands", player)
+      .receive("ok", response => {
+        // this.removeIslandImages(this.state.islands);
+        // this.setIslandCoordinates(response.board);
+        this.setState({message: "Islands set!"});
+        // document.getElementById("set_islands").remove();
+      })
+      .receive("error", response => {
+        this.setState({message: "Oops. Can't set your islands yet."});
+      })
+  }
+
+  positionIsland(coordinate, island, row, col) {
+    const params = {"player": this.state.player, "island": island, "row": row, "col": col};
+    this.state.channel.push("position_island", params)
+      .receive("ok", response => {
+        // coordinate.appendChild(island);
+        // island.className = "positioned_island_image";
+        this.setState({message: "Island Positioned!"});
+        console.log("Island Positioned!")
+      })
+      .receive("error", response => {
+        console.log("error with position")
+        this.setState({message: "Oops!"});
+      })
   }
 
   renderGame() {
@@ -379,7 +432,8 @@ class Game extends React.Component {
           <OwnBoard 
             channel={this.state.channel} 
             player={this.state.player} 
-            onLayout={this.setBoardValues}
+            onLayout={this.handleSetIslands}
+            onPress={this.handleSetIslands}
           />
         }
         <View style={styles.imagesContainer}>
@@ -387,31 +441,41 @@ class Game extends React.Component {
             source={require('./images/atoll.png')} 
             style={[styles.islandImages, {width: 60, height: 90}]} 
             setScroll={this.setScroll}
-            onRelease={this.isBoard}
+            onRelease={this.handleRelease}
+            boardValues={this.state.boardValues}
+            island={'atoll'}
           />
           <Island 
             source={require('./images/dot.png')} 
             style={[styles.islandImages, {width: 30, height: 30}]} 
             setScroll={this.setScroll}
-            onRelease={this.isBoard}
+            onRelease={this.handleRelease}
+            boardValues={this.state.boardValues}
+            island={'dot'}
           />
           <Island 
             source={require('./images/l_shape.png')} 
             style={[styles.islandImages, {width: 60, height: 90}]} 
             setScroll={this.setScroll}
-            onRelease={this.isBoard}
+            onRelease={this.handleRelease}
+            boardValues={this.state.boardValues}
+            island={'l_shape'}
           />
           <Island 
             source={require('./images/s_shape.png')} 
             style={[styles.islandImages, {width: 90, height: 60}]} 
             setScroll={this.setScroll}
-            onRelease={this.isBoard}
+            onRelease={this.handleRelease}
+            boardValues={this.state.boardValues}
+            island={'s_shape'}
           />
           <Island 
             source={require('./images/square.png')} 
             style={[styles.islandImages, {width: 60, height: 60}]} 
             setScroll={this.setScroll}
-            onRelease={this.isBoard}
+            onRelease={this.handleRelease}
+            boardValues={this.state.boardValues}
+            island={'square'}
           />
         </View>
         {<OpponentBoard channel={this.state.channel} player={this.state.player} />}
