@@ -22,7 +22,7 @@ function blankBoard() {
 
   for (let i = 1; i <= 10; i++) {
     for (let j = 1; j <= 10; j++) {
-      board[i + ":" + j] = {row: i, col: j, className: "coordinate"};
+      board[i + ":" + j] = {row: i, col: j, className: "water"};
     }
   }
   return board;
@@ -39,25 +39,25 @@ function getRows(board) {
 }
 
 function hit(board, row, col) {
-  board[row + ":" + col].className = "coordinate hit";
+  board[row + ":" + col].className = "hit";
   return board;
 }
 
 function miss(board, row, col) {
-  board[row + ":" + col].className = "coordinate miss";
+  board[row + ":" + col].className = "miss";
   return board;
 }
 
 function inIsland(board, coordinates) {
   _.each(coordinates, function(coord) {
-    board[coord.row + ":" + coord.col].className = "coordinate island";
+    board[coord.row + ":" + coord.col].className = "island";
   });
   return board;
 }
 
 function Coordinate(props) {
   return (
-    <View style={styles.coordinate} />
+    <View style={[styles.coordinate, styles[props.className]]} />
   )
 }
 
@@ -98,12 +98,13 @@ class OwnBoard extends React.Component {
         player: props.player,
         channel: props.channel,
         message: 'Welcome!',
-        islands: ['atoll', 'dot', 'l_shape', 's_shape', 'square']
+        islands: ['atoll', 'dot', 'l_shape', 's_shape', 'square'],
+        islandsSet: false,
+        boardValues: {y: 178, width: 272, x: 89, height: 272} 
       }
-  }
-
-  handleClick(input) {
-    console.log(input)
+      this.setBoardValues = this.setBoardValues.bind(this)
+      this.handleRelease = this.handleRelease.bind(this)
+      this.handleSetIslands = this.handleSetIslands.bind(this)
   }
 
   renderRow(coordinates, key) {
@@ -116,11 +117,90 @@ class OwnBoard extends React.Component {
               row={coord.row}
               col={coord.col}
               key={i}
+              className={coord.className}
             />
           )
         })}
       </View>
     )
+  }
+
+  setBoardValues(event){
+      console.log('onLayout boardValues:', event.nativeEvent.layout)
+  }
+
+  handleRelease(gesture, island){
+    if(this.isBoard(gesture)){
+      const { y, width, x, height } = this.state.boardValues 
+      colCoord = Math.floor(((gesture.moveX - x)/ (width / 10 )) + 1)
+      console.log('x coord', colCoord)
+      rowCoord = Math.floor(((gesture.moveY - y)/ (height / 10 )) + 1)
+      console.log('y coord', rowCoord)
+      console.log('island', island)
+      this.positionIsland(null, island, rowCoord, colCoord)
+      return true
+    }else{
+      return false
+    }
+  }
+
+  isBoard(gesture){
+    console.log('boardValues', this.state.boardValues)
+    console.log('moveX', gesture.moveX)
+    console.log('moveY', gesture.moveY)
+    var dz = this.state.boardValues;
+    return (
+      gesture.moveY > dz.y 
+      && gesture.moveY < dz.y + dz.height
+      && gesture.moveX > dz.x 
+      && gesture.moveX < dz.x + dz.width
+    )
+  }
+
+  handleSetIslands() {
+    this.setIslands(this.state.player);
+  }
+
+  setIslands(player) {
+    this.state.channel.push("set_islands", player)
+      .receive("ok", response => {
+        this.setIslandCoordinates(response.board);
+        this.setState({message: "Islands set!", islandsSet: true});
+      })
+      .receive("error", response => {
+        this.setState({message: "Oops. Can't set your islands yet."});
+      })
+  }
+
+  positionIsland(coordinate, island, row, col) {
+    const params = {"player": this.state.player, "island": island, "row": row, "col": col};
+    this.state.channel.push("position_island", params)
+      .receive("ok", response => {
+        // coordinate.appendChild(island);
+        // island.className = "positioned_island_image";
+        this.setState({message: "Island Positioned!"});
+        console.log("Island Positioned!")
+      })
+      .receive("error", response => {
+        console.log("error with position")
+        this.setState({message: "Oops!"});
+      })
+  }
+
+  extractCoordinates(board) {
+    let coords = this.state.islands.reduce(
+      function(acc, island) {
+        return acc.concat(board[island].coordinates);
+      }, []
+    );
+    return coords;
+  }
+
+  setIslandCoordinates(responseBoard) {
+    const coordinates = this.extractCoordinates(responseBoard, this.state.islands);
+    const newBoard = inIsland(this.state.board, coordinates);
+    console.log(newBoard)
+    this.setState({board: newBoard});
   }
 
   render() {
@@ -133,18 +213,65 @@ class OwnBoard extends React.Component {
       <View>
         <Text style={styles.boardTitle}>Own Board</Text>
         <MessageBox message={message} />
-        <View onLayout={this.props.onLayout} style={styles.board} >
+        <View onLayout={this.setBoardValues} style={styles.board} >
           <HeaderRow />
           {range.map(function(i) {
             return (context.renderRow(rows[i], i))
           })}
         </View>
-        <View style={styles.button}>
-          <Button
-            onPress={this.props.onPress}
-            title='Set Islands'
-          />
-        </View>
+        {!this.state.islandsSet ? ( 
+          <View>
+            <View style={styles.button}>
+              <Button
+                onPress={this.handleSetIslands}
+                title='Set Islands'
+              />
+            </View>
+            <View style={styles.imagesContainer}>
+              <Island 
+                source={require('./images/atoll.png')} 
+                style={[styles.islandImages, {width: 60, height: 90}]} 
+                setScroll={this.props.setScroll}
+                onRelease={this.handleRelease}
+                boardValues={this.state.boardValues}
+                island={'atoll'}
+              />
+              <Island 
+                source={require('./images/dot.png')} 
+                style={[styles.islandImages, {width: 30, height: 30}]} 
+                setScroll={this.props.setScroll}
+                onRelease={this.handleRelease}
+                boardValues={this.state.boardValues}
+                island={'dot'}
+              />
+              <Island 
+                source={require('./images/l_shape.png')} 
+                style={[styles.islandImages, {width: 60, height: 90}]} 
+                setScroll={this.props.setScroll}
+                onRelease={this.handleRelease}
+                boardValues={this.state.boardValues}
+                island={'l_shape'}
+              />
+              <Island 
+                source={require('./images/s_shape.png')} 
+                style={[styles.islandImages, {width: 90, height: 60}]} 
+                setScroll={this.props.setScroll}
+                onRelease={this.handleRelease}
+                boardValues={this.state.boardValues}
+                island={'s_shape'}
+              />
+              <Island 
+                source={require('./images/square.png')} 
+                style={[styles.islandImages, {width: 60, height: 60}]} 
+                setScroll={this.props.setScroll}
+                onRelease={this.handleRelease}
+                boardValues={this.state.boardValues}
+                island={'square'}
+              />
+            </View>
+          </View>
+          ) : null
+        }
       </View>
     );
   }
@@ -165,10 +292,30 @@ class OpponentBoard extends React.Component {
     this.state.channel.on("player_added", response => {
       this.processPlayerAdded();
     })
+
+    this.state.channel.on("player_set_islands", response => {
+      this.processOpponentSetIslands(response);
+    })
+  }
+
+  componentWillUnmount() {
+    this.state.channel.off("player_added", response => {
+      this.processPlayerAdded();
+    })
+
+    this.state.channel.off("player_set_islands", response => {
+      this.processOpponentSetIslands();
+    })
   }
 
   processPlayerAdded() {
     this.setState({message: "Both players present."});
+  }
+
+  processOpponentSetIslands(response) {
+    if (this.state.player !== response.player) {
+      this.setState({message: "Your opponent set their islands."});
+    }
   }
 
   renderRow(coordinates, key) {
@@ -276,14 +423,9 @@ class Game extends React.Component {
         channel: null,
         player: null,
         scroll: true,
-        boardValues: {y: 178, width: 272, x: 89, height: 272} 
       },
       this.handlePress = this.handlePress.bind(this)
       this.setScroll = this.setScroll.bind(this)
-      this.setBoardValues = this.setBoardValues.bind(this)
-      // this.isBoard = this.isBoard.bind(this)
-      this.handleRelease = this.handleRelease.bind(this)
-      this.handleSetIslands = this.handleSetIslands.bind(this)
   }
 
   renderStartButtons() {
@@ -361,70 +503,6 @@ class Game extends React.Component {
     this.setState({scroll: bool})
   }
 
-  setBoardValues(event){
-      console.log('onLayout boardValues:', event.nativeEvent.layout)
-  }
-
-  handleRelease(gesture, island){
-    if(this.isBoard(gesture)){
-      const { y, width, x, height } = this.state.boardValues 
-      coordX = Math.floor(((gesture.moveX - x)/ (width / 10 )) + 1)
-      console.log('x coord', coordX)
-      coordY = Math.floor(((gesture.moveY - y)/ (height / 10 )) + 1)
-      console.log('y coord', coordY)
-      console.log('island', island)
-      this.positionIsland(null, island, coordX, coordY)
-      return true
-    }else{
-      return false
-    }
-  }
-
-  isBoard(gesture){
-    console.log('boardValues', this.state.boardValues)
-    console.log('moveX', gesture.moveX)
-    console.log('moveY', gesture.moveY)
-    var dz = this.state.boardValues;
-    return (
-      gesture.moveY > dz.y 
-      && gesture.moveY < dz.y + dz.height
-      && gesture.moveX > dz.x 
-      && gesture.moveX < dz.x + dz.width
-    )
-  }
-
-  handleSetIslands() {
-    this.setIslands(this.state.player);
-  }
-
-  setIslands(player) {
-    this.state.channel.push("set_islands", player)
-      .receive("ok", response => {
-        // this.removeIslandImages(this.state.islands);
-        // this.setIslandCoordinates(response.board);
-        this.setState({message: "Islands set!"});
-        // document.getElementById("set_islands").remove();
-      })
-      .receive("error", response => {
-        this.setState({message: "Oops. Can't set your islands yet."});
-      })
-  }
-
-  positionIsland(coordinate, island, row, col) {
-    const params = {"player": this.state.player, "island": island, "row": row, "col": col};
-    this.state.channel.push("position_island", params)
-      .receive("ok", response => {
-        // coordinate.appendChild(island);
-        // island.className = "positioned_island_image";
-        this.setState({message: "Island Positioned!"});
-        console.log("Island Positioned!")
-      })
-      .receive("error", response => {
-        console.log("error with position")
-        this.setState({message: "Oops!"});
-      })
-  }
-
   renderGame() {
     return (
       <ScrollView scrollEnabled={this.state.scroll}>
@@ -432,52 +510,9 @@ class Game extends React.Component {
           <OwnBoard 
             channel={this.state.channel} 
             player={this.state.player} 
-            onLayout={this.handleSetIslands}
-            onPress={this.handleSetIslands}
+            setScroll={this.setScroll}
           />
         }
-        <View style={styles.imagesContainer}>
-          <Island 
-            source={require('./images/atoll.png')} 
-            style={[styles.islandImages, {width: 60, height: 90}]} 
-            setScroll={this.setScroll}
-            onRelease={this.handleRelease}
-            boardValues={this.state.boardValues}
-            island={'atoll'}
-          />
-          <Island 
-            source={require('./images/dot.png')} 
-            style={[styles.islandImages, {width: 30, height: 30}]} 
-            setScroll={this.setScroll}
-            onRelease={this.handleRelease}
-            boardValues={this.state.boardValues}
-            island={'dot'}
-          />
-          <Island 
-            source={require('./images/l_shape.png')} 
-            style={[styles.islandImages, {width: 60, height: 90}]} 
-            setScroll={this.setScroll}
-            onRelease={this.handleRelease}
-            boardValues={this.state.boardValues}
-            island={'l_shape'}
-          />
-          <Island 
-            source={require('./images/s_shape.png')} 
-            style={[styles.islandImages, {width: 90, height: 60}]} 
-            setScroll={this.setScroll}
-            onRelease={this.handleRelease}
-            boardValues={this.state.boardValues}
-            island={'s_shape'}
-          />
-          <Island 
-            source={require('./images/square.png')} 
-            style={[styles.islandImages, {width: 60, height: 60}]} 
-            setScroll={this.setScroll}
-            onRelease={this.handleRelease}
-            boardValues={this.state.boardValues}
-            island={'square'}
-          />
-        </View>
         {<OpponentBoard channel={this.state.channel} player={this.state.player} />}
       </ScrollView>
     )
@@ -547,7 +582,8 @@ const styles = StyleSheet.create({
   },
   board: {
     alignItems: 'center', 
-    justifyContent: 'center' 
+    justifyContent: 'center',
+    marginBottom: 10
   },
   row: {
     flexDirection: 'row',
@@ -556,7 +592,18 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderWidth: 1,
+  },
+  water: {
     backgroundColor: 'blue'
+  },
+  island: {
+    backgroundColor: 'tan'
+  },
+  hit: {
+    backgroundColor: 'green'
+  },
+  miss: {
+    backgroundColor: 'black'
   },
   button: {
     margin: 10
