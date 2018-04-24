@@ -8,6 +8,7 @@ import {
   StyleSheet, 
   Text, 
   TouchableHighlight,
+  TouchableOpacity,
   View 
 } from 'react-native'
 
@@ -57,7 +58,10 @@ function inIsland(board, coordinates) {
 
 function Coordinate(props) {
   return (
-    <View style={[styles.coordinate, styles[props.className]]} />
+    <TouchableOpacity 
+      style={[styles.coordinate, styles[props.className]]} 
+      onPress={() => props.handlePress(props.row, props.col)}
+    />
   )
 }
 
@@ -90,6 +94,65 @@ function HeaderRow(props) {
   );
 }
 
+class Island extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      pan: new Animated.ValueXY()
+    };
+  }
+
+  componentWillMount() {
+    this._animatedValueX = 0;
+    this._animatedValueY = 0; 
+    this.state.pan.x.addListener((value) => this._animatedValueX = value.value);
+    this.state.pan.y.addListener((value) => this._animatedValueY = value.value);
+
+    // Initialize PanResponder with move handling
+    this.panResponder = PanResponder.create({
+      onStartShouldSetPanResponder: (e, gesture) => true,
+      onStartShouldSetResponder: (e, gesture) => true,
+      onPanResponderGrant: (e, gestureState) => {
+        this.state.pan.setOffset({x: this._animatedValueX, y: this._animatedValueY})
+        this.state.pan.setValue({x: 0, y: 0})
+        this.props.setScroll(false)
+      },
+      onPanResponderMove: Animated.event([
+        null, { dx: this.state.pan.x, dy: this.state.pan.y },
+        this.state.pan.setValue({x: 0, y: 0})
+      ]),
+      onPanResponderRelease: (e, gesture) => {
+        this.state.pan.flattenOffset()
+        this.props.setScroll(true)
+
+        if(this.props.onRelease(gesture, this.props.island)){
+          console.log('added coord')
+        }else{
+          Animated.spring(
+            this.state.pan,
+            {toValue:{x:0,y:0}}
+          ).start();
+        }
+      }
+    });
+  }
+
+  render() {
+    const { source, style } = this.props
+    const panStyle = {
+      transform: this.state.pan.getTranslateTransform()
+    }
+
+    return (
+      <Animated.Image 
+        source={source} 
+        style={[panStyle, style]}
+        {...this.panResponder.panHandlers}
+      />
+    )
+  }
+}
+
 class OwnBoard extends React.Component {
   constructor(props) {
     super(props),
@@ -102,12 +165,24 @@ class OwnBoard extends React.Component {
         islandsSet: false,
         boardValues: {y: 178, width: 272, x: 89, height: 272} 
       }
-      this.setBoardValues = this.setBoardValues.bind(this)
       this.handleRelease = this.handleRelease.bind(this)
       this.handleSetIslands = this.handleSetIslands.bind(this)
+      this.handlePress = this.handlePress.bind(this)
   }
 
-  renderRow(coordinates, key) {
+  componentDidMount() {
+    this.state.channel.on("player_guessed_coordinate", response => {
+      this.processOpponentGuess(response);
+    })
+  }
+
+  componentWillUnmount() {
+    this.state.channel.off("player_guessed_coordinate", response => {
+      this.processOpponentGuess(response);
+    })
+  }
+
+  renderRow(coordinates, key, handlePress) {
     return (
       <View style={styles.row} key={key}>
         <Box value={key} />
@@ -118,15 +193,12 @@ class OwnBoard extends React.Component {
               col={coord.col}
               key={i}
               className={coord.className}
+              handlePress={handlePress}
             />
           )
         })}
       </View>
     )
-  }
-
-  setBoardValues(event){
-      console.log('onLayout boardValues:', event.nativeEvent.layout)
   }
 
   handleRelease(gesture, island){
@@ -145,10 +217,10 @@ class OwnBoard extends React.Component {
   }
 
   isBoard(gesture){
-    console.log('boardValues', this.state.boardValues)
+    var dz = this.state.boardValues;
     console.log('moveX', gesture.moveX)
     console.log('moveY', gesture.moveY)
-    var dz = this.state.boardValues;
+    console.log('boardValues', dz)
     return (
       gesture.moveY > dz.y 
       && gesture.moveY < dz.y + dz.height
@@ -176,8 +248,6 @@ class OwnBoard extends React.Component {
     const params = {"player": this.state.player, "island": island, "row": row, "col": col};
     this.state.channel.push("position_island", params)
       .receive("ok", response => {
-        // coordinate.appendChild(island);
-        // island.className = "positioned_island_image";
         this.setState({message: "Island Positioned!"});
         console.log("Island Positioned!")
       })
@@ -199,8 +269,32 @@ class OwnBoard extends React.Component {
   setIslandCoordinates(responseBoard) {
     const coordinates = this.extractCoordinates(responseBoard, this.state.islands);
     const newBoard = inIsland(this.state.board, coordinates);
-    console.log(newBoard)
     this.setState({board: newBoard});
+  }
+
+  handlePress(row, col) {
+    this.setState({ message: 'Must guess on opponent board' })
+  }
+
+  processOpponentGuess(response) {
+    let board = this.state.board;
+    if (response.player !== this.state.player) {
+      if (response.result.win === "win") {
+        this.setState({message: "Your opponent won."});
+        board = hit(board, response.row, response.col);
+      } else if (response.result.island !== "none") {
+        this.setState({message: "Your opponent forested your " + response.result.island + " island."});
+        board = hit(board, response.row, response.col);
+      } else if (response.result.hit === true) {
+        this.setState({message: "Your opponent hit your island."});
+        board = hit(board, response.row, response.col);
+      } else {
+        this.setState({message: "Your opponent missed."});
+        board = miss(board, response.row, response.col);
+      }
+    }
+
+    this.setState({board: board});
   }
 
   render() {
@@ -213,10 +307,10 @@ class OwnBoard extends React.Component {
       <View>
         <Text style={styles.boardTitle}>Own Board</Text>
         <MessageBox message={message} />
-        <View onLayout={this.setBoardValues} style={styles.board} >
+        <View style={styles.board} >
           <HeaderRow />
           {range.map(function(i) {
-            return (context.renderRow(rows[i], i))
+            return (context.renderRow(rows[i], i, context.handlePress))
           })}
         </View>
         {!this.state.islandsSet ? ( 
@@ -286,6 +380,7 @@ class OpponentBoard extends React.Component {
         channel: props.channel,
         message: 'No opponent yet.'
       }
+      this.handlePress = this.handlePress.bind(this)
   }
 
   componentDidMount() {
@@ -296,6 +391,10 @@ class OpponentBoard extends React.Component {
     this.state.channel.on("player_set_islands", response => {
       this.processOpponentSetIslands(response);
     })
+
+    this.state.channel.on("player_guessed_coordinate", response => {
+      this.processGuess(response);
+    })
   }
 
   componentWillUnmount() {
@@ -305,6 +404,10 @@ class OpponentBoard extends React.Component {
 
     this.state.channel.off("player_set_islands", response => {
       this.processOpponentSetIslands();
+    })
+
+    this.state.channel.off("player_guessed_coordinate", response => {
+      this.processGuess(response);
     })
   }
 
@@ -318,7 +421,40 @@ class OpponentBoard extends React.Component {
     }
   }
 
-  renderRow(coordinates, key) {
+  handlePress(row, col) {
+    this.guessCoordinate(this.state.player, row, col);
+  }
+
+  guessCoordinate(player, row, col) {
+    const params = {"player": player, "row": row, "col": col};
+    this.state.channel.push("guess_coordinate", params)
+      .receive("error", response => {
+          this.setState({message: response.reason});
+        })
+  }
+
+  processGuess(response) {
+    let board = this.state.board;
+    if (response.player === this.state.player) {
+      if (response.result.win === "win") {
+        this.setState({message: "You won!"});
+        board = hit(board, response.row, response.col);
+      } else if (response.result.island !== "none") {
+        this.setState({message: "You forested your opponent's " + response.result.island + " island!"});
+        board = hit(board, response.row, response.col);
+      } else if (response.result.hit === true) {
+        this.setState({message: "It's a hit!"});
+        board = hit(board, response.row, response.col);
+      } else {
+        this.setState({message: "Oops, you missed."});
+        board = miss(board, response.row, response.col);
+      }
+    }
+
+    this.setState({board: board});
+  }
+
+  renderRow(coordinates, key, handlePress) {
     return (
       <View style={styles.row} key={key}>
         <Box value={key} />
@@ -328,6 +464,8 @@ class OpponentBoard extends React.Component {
               row={coord.row}
               col={coord.col}
               key={i}
+              className={coord.className}
+              handlePress={handlePress}
             />
           )
         })}
@@ -348,70 +486,11 @@ class OpponentBoard extends React.Component {
         <View style={styles.board} >
           <HeaderRow />
           {range.map(function(i) {
-            return (context.renderRow(rows[i], i))
+            return (context.renderRow(rows[i], i, context.handlePress))
           })}
         </View>
       </View>
     );
-  }
-}
-
-class Island extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      pan: new Animated.ValueXY()
-    };
-  }
-
-  componentWillMount() {
-    this._animatedValueX = 0;
-    this._animatedValueY = 0; 
-    this.state.pan.x.addListener((value) => this._animatedValueX = value.value);
-    this.state.pan.y.addListener((value) => this._animatedValueY = value.value);
-
-    // Initialize PanResponder with move handling
-    this.panResponder = PanResponder.create({
-      onStartShouldSetPanResponder: (e, gesture) => true,
-      onStartShouldSetResponder: (e, gesture) => true,
-      onPanResponderGrant: (e, gestureState) => {
-        this.state.pan.setOffset({x: this._animatedValueX, y: this._animatedValueY})
-        this.state.pan.setValue({x: 0, y: 0})
-        this.props.setScroll(false)
-      },
-      onPanResponderMove: Animated.event([
-        null, { dx: this.state.pan.x, dy: this.state.pan.y },
-        this.state.pan.setValue({x: 0, y: 0})
-      ]),
-      onPanResponderRelease: (e, gesture) => {
-        this.state.pan.flattenOffset()
-        this.props.setScroll(true)
-
-        if(this.props.onRelease(gesture, this.props.island)){
-          console.log('added coord')
-        }else{
-          Animated.spring(
-            this.state.pan,
-            {toValue:{x:0,y:0}}
-          ).start();
-        }
-      }
-    });
-  }
-
-  render() {
-    const { source, style } = this.props
-    const panStyle = {
-      transform: this.state.pan.getTranslateTransform()
-    }
-
-    return (
-      <Animated.Image 
-        source={source} 
-        style={[panStyle, style]}
-        {...this.panResponder.panHandlers}
-      />
-    )
   }
 }
 
@@ -592,6 +671,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderWidth: 1,
+    borderColor: 'white',
   },
   water: {
     backgroundColor: 'blue'
