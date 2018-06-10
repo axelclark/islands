@@ -1,0 +1,145 @@
+<template>
+  <div id="own_board">
+    <div class="message_box">{{ message }}</div>
+    <table class="board" id="ownBoard">
+      <caption class="board_title">your board</caption>
+      <header-row/>
+      <tbody>
+        <board-row v-for="n in 10" :coordinates="rows[n]" :value="n" :key="n" 
+          v-on:droppedIsland="dropHandler"/>
+      </tbody>
+    </table>
+    <button class="button" id="set_islands" v-on:click="() => handleClick('set-islands')">
+      Set Islands
+    </button>
+  </div>
+</template>
+
+<script>
+import { blankBoard, getRows, hit, miss, inIsland } from "../utils/board"
+import HeaderRow from "./HeaderRow"
+import BoardRow from "./BoardRow"
+
+export default {
+  name: "own-board",
+  data () {
+    return {
+      board: blankBoard(),
+      message: "Welcome!",
+      islands: ["atoll", "dot", "l_shape", "s_shape", "square"]
+    }
+  },
+
+  computed: {
+    rows: function () {
+      return getRows(this.board)
+    }
+  },
+
+  props: {
+    channel: Object,
+    player: String
+  },
+
+  components: {
+    HeaderRow,
+    BoardRow
+  },
+
+  mounted () {
+    this.channel.on("player_guessed_coordinate", response => {
+      this.processOpponentGuess(response);
+    })
+  },
+
+  beforeDestroy () {
+    this.channel.off("player_guessed_coordinate", response => {
+      this.processOpponentGuess(response);
+    })
+  },
+
+  methods: {
+    processOpponentGuess: function (response) {
+      let board = this.board;
+      if (response.player !== this.player) {
+        if (response.result.win === "win") {
+          this.message = "Your opponent won.";
+          board = hit(board, response.row, response.col);
+        } else if (response.result.island !== "none") {
+          this.message = "Your opponent forested your " + response.result.island + " island.";
+          board = hit(board, response.row, response.col);
+        } else if (response.result.hit === true) {
+          this.message = "Your opponent hit your island.";
+          board = hit(board, response.row, response.col);
+        } else {
+          this.message = "Your opponent missed.";
+          board = miss(board, response.row, response.col);
+        }
+      }
+      this.board = board;
+    },
+
+    dropHandler: function (event) {
+      event.preventDefault();
+      const data = event.dataTransfer.getData("text");
+      const image = document.getElementById(data);
+      const row = Number(event.target.dataset.row);
+      const col = Number(event.target.dataset.col);
+      this.positionIsland(event.target, image, row, col);
+    },
+
+    positionIsland: function (coordinate, island, row, col) {
+      const params = {"player": this.player, "island": island.id, "row": row, "col": col};
+      this.channel.push("position_island", params)
+        .receive("ok", response => {
+          coordinate.appendChild(island);
+          island.classList.add("positioned_island_image");
+          this.message = "Island Positioned!";
+        })
+        .receive("error", response => {
+          this.message = "Oops!";
+        })
+    },
+
+    handleClick: function () {
+      this.setIslands(this.player);
+    },
+
+    setIslands: function (player) {
+      this.channel.push("set_islands", player)
+        .receive("ok", response => {
+          this.removeIslandImages(this.islands);
+          this.setIslandCoordinates(response.board);
+          this.message = "Islands set!";
+          document.getElementById("set_islands").remove();
+        })
+        .receive("error", response => {
+          this.message = "Oops. Can't set your islands yet.";
+        })
+    },
+
+    extractCoordinates: function (board) {
+      let coords = this.islands.reduce(
+        function(acc, island) {
+          return acc.concat(board[island].coordinates);
+        }, []
+      );
+      return coords;
+    },
+
+    removeIslandImages: function () {
+      const images = document.getElementsByTagName("img");
+      this.islands.forEach(function(island) { images[island].remove(); });
+    },
+
+    setIslandCoordinates: function (responseBoard) {
+      const coordinates = this.extractCoordinates(responseBoard, this.islands);
+      const newBoard = inIsland(this.board, coordinates);
+      this.board = newBoard;
+    },
+  }
+}
+</script>
+
+<style scoped>
+</style>
